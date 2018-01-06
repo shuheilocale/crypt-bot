@@ -1,0 +1,6 @@
+slackbot_settings.py
+amount.json
+*png
+.vscode/
+__pychache__/
+*.pyc
