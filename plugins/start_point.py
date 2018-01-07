@@ -52,6 +52,9 @@ cryptocurrency={
     "NEO":0,
     "PAC":0,
     "LSK":0,
+    "CMPCO":0,
+    "B3":0,
+    "XCS":0,
     "OTHER":0   
 }
 
@@ -200,15 +203,26 @@ def get_coinechange():
 
     rate = {}
     #レートだけ取得
-    headers={"User-Agent":"Mozilla/5.0 (X11; Linux x86_64; rv:38.0) Gecko/20100101 Firefox/38.0"}
-    allprices_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=137"
-    ret_xp_doge = requests.get(allprices_url, headers=headers).json()
-
-
+    headers={"User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.50 Safari/537.36"}
+    xp_doge_price_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=137"
+    ret_xp_doge = requests.get(xp_doge_price_url, headers=headers).json()
     rate["XP_DOGE"] = float(ret_xp_doge["result"]["LastPrice"])
 
-    allprices_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=216"
-    ret_doge_lite = requests.get(allprices_url, headers=headers).json()
+    cmpco_btc_price_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=396"
+    ret_cmpco_btc = requests.get(cmpco_btc_price_url, headers=headers).json()
+    #print(ret_cmpco_btc)
+    rate["CMPCO_BTC"] = float(ret_cmpco_btc["result"]["LastPrice"])
+
+    b3_btc_price_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=514"
+    ret_b3_btc = requests.get(b3_btc_price_url, headers=headers).json()
+    rate["B3_BTC"] = float(ret_b3_btc["result"]["LastPrice"])
+
+    xcs_btc_price_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=473"
+    ret_xcs_btc = requests.get(xcs_btc_price_url, headers=headers).json()
+    rate["XCS_BTC"] = float(ret_xcs_btc["result"]["LastPrice"])
+
+    doge_lite_price_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=216"
+    ret_doge_lite = requests.get(doge_lite_price_url, headers=headers).json()
     rate["DOGE_LITE"] = float(ret_doge_lite["result"]["LastPrice"])
     return rate
 
@@ -332,11 +346,16 @@ def exec():
     assets["ACO"] = amount["ACO"]
     assets["CRYPTERIUM"] = amount["CRYPTERIUM"]
     assets["PAC"] = amount["PAC"]
+    assets["XCS"] = amount["XCS"]
+    assets["CMPCO"] = amount["CMPCO"]
+    assets["B3"] = amount["B3"]
 
     #BTC建てに変換する
     b_rates.update(z_rates)
     aco = b_rates["ETH"]/1100.0 # 固定レート
-    b_rates.update({"BTC":1.0, "CRYPTERIUM":0.0001, "ACO":aco, "XP":xp_rate, "PAC":pac_rate})
+    b_rates.update({"BTC":1.0, "CRYPTERIUM":0.0001, "ACO":aco, "XP":xp_rate,
+                    "PAC":pac_rate, "XCS":rate_ce["XCS_BTC"], "CMPCO":rate_ce["CMPCO_BTC"], "B3":rate_ce["B3_BTC"]})
+
     print("calc amount denominated in btc")
     in_btc = calc_amount_denominated_in_btc(assets, b_rates)
 
