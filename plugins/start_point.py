@@ -47,7 +47,6 @@ cryptocurrency={
     "JPY":0,
     "LEND":0,
     "XVG":0,
-    "TRIG":0,
     "BNB":0,
     "NEO":0,
     "PAC":0,
