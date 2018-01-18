@@ -4,7 +4,6 @@ from slackbot.bot import default_reply  # 該当する応答がない場合に�
 from slackbot import settings
 
 import requests
-import pycurl
 import io
 import urllib
 import hmac
@@ -57,13 +56,14 @@ cryptocurrency={
     "OTHER":0   
 }
 
-def do_curl(url, encode="utf-8"):
-    curl = pycurl.Curl() 
-    b = io.BytesIO()
-    curl.setopt(pycurl.URL, url)
-    curl.setopt(curl.WRITEFUNCTION, b.write)
-    curl.perform()
-    ret = b.getvalue().decode("utf-8")
+def req(url, headers=None):
+
+    if headers is None:
+        headers={"User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.50 Safari/537.36"}
+    elif not "User-Agent" in headers:
+        headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.50 Safari/537.36"
+    
+    ret = requests.get(url, headers=headers)
     return ret
 
 
@@ -73,35 +73,20 @@ def get_binance():
     api_key = settings.BINANCE_API_KEY
 
     #timestamp 
-    timestamp = json.loads(do_curl("https://api.binance.com/api/v1/time"))
+    timestamp = req("https://api.binance.com/api/v1/time").json()
     timestamp = timestamp["serverTime"]
-    #timestamp = int(time.time()*1000)
     recv_window = 6000000
     message = bytes("timestamp={t}&recvWindow={r}".format(t=timestamp,r=recv_window),"latin-1")
     secretkey = bytes(s_key, "latin-1")
     signature = hmac.new(secretkey, message, hashlib.sha256).hexdigest()
     url = "https://api.binance.com/api/v3/account?timestamp={t}&recvWindow={r}&signature={s}".format(t=timestamp, r=recv_window, s=signature)
-    curl = pycurl.Curl() 
-    b = io.BytesIO()
-    header = ["X-MBX-APIKEY: {}".format(api_key)]
-    curl.setopt(pycurl.HTTPHEADER, header)
-    curl.setopt(pycurl.URL, url)
-    curl.setopt(curl.WRITEFUNCTION, b.write)
-    curl.perform()
-    ret = b.getvalue().decode("utf-8")
-    print("------------------")
-    #print(ret)
+    headers = {"X-MBX-APIKEY" : format(api_key)}
+    ret = req(url, headers).json()
 
     #レート
-    b_a = io.BytesIO()
-    allprices_url = "https://api.binance.com/api/v1/ticker/allPrices"
-    curl.setopt(pycurl.URL, allprices_url)
-    curl.setopt(curl.WRITEFUNCTION, b_a.write)
-    curl.perform()
-    ret_al = b_a.getvalue().decode("utf-8")
-    print(type(ret_al))
+    ret_al = req("https://api.binance.com/api/v1/ticker/allPrices").json()
 
-    dict, rates = binance_to_dict(json.loads(ret), json.loads(ret_al))
+    dict, rates = binance_to_dict(ret, ret_al)
     return dict, rates
 
 def binance_to_dict(binance, rates):
@@ -202,26 +187,24 @@ def get_coinechange():
 
     rate = {}
     #レートだけ取得
-    headers={"User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.50 Safari/537.36"}
-    xp_doge_price_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=137"
-    ret_xp_doge = requests.get(xp_doge_price_url, headers=headers).json()
+    res = req("https://www.coinexchange.io/api/v1/getmarketsummary?market_id=137")
+    ret_xp_doge = res.json()
     rate["XP_DOGE"] = float(ret_xp_doge["result"]["LastPrice"])
 
-    cmpco_btc_price_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=396"
-    ret_cmpco_btc = requests.get(cmpco_btc_price_url, headers=headers).json()
-    #print(ret_cmpco_btc)
+    res = req("https://www.coinexchange.io/api/v1/getmarketsummary?market_id=396")
+    ret_cmpco_btc = res.json()
     rate["CMPCO_BTC"] = float(ret_cmpco_btc["result"]["LastPrice"])
 
-    b3_btc_price_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=514"
-    ret_b3_btc = requests.get(b3_btc_price_url, headers=headers).json()
+    res = req("https://www.coinexchange.io/api/v1/getmarketsummary?market_id=514")
+    ret_b3_btc = res.json()
     rate["B3_BTC"] = float(ret_b3_btc["result"]["LastPrice"])
 
-    xcs_btc_price_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=473"
-    ret_xcs_btc = requests.get(xcs_btc_price_url, headers=headers).json()
+    res = req("https://www.coinexchange.io/api/v1/getmarketsummary?market_id=473")
+    ret_xcs_btc = res.json()
     rate["XCS_BTC"] = float(ret_xcs_btc["result"]["LastPrice"])
 
-    doge_lite_price_url = "https://www.coinexchange.io/api/v1/getmarketsummary?market_id=216"
-    ret_doge_lite = requests.get(doge_lite_price_url, headers=headers).json()
+    res = req("https://www.coinexchange.io/api/v1/getmarketsummary?market_id=216")
+    ret_doge_lite = res.json()
     rate["DOGE_LITE"] = float(ret_doge_lite["result"]["LastPrice"])
     return rate
 
@@ -229,14 +212,7 @@ def get_cryptopia():
 
     rate = {}
     #レートだけ取得
-    curl = pycurl.Curl()
-    b_x = io.BytesIO()
-    markets_url = "https://www.cryptopia.co.nz/api/GetMarkets"
-    curl.setopt(pycurl.URL, markets_url)
-    curl.setopt(curl.WRITEFUNCTION, b_x.write)
-    curl.perform()
-
-    markets = json.loads(b_x.getvalue().decode("utf-8"))
+    markets = req("https://www.cryptopia.co.nz/api/GetMarkets").json()
     for data in markets["Data"]:
         if data["Label"] == "PAC/DOGE":
             rate["PAC_DOGE"] = data["LastPrice"]
