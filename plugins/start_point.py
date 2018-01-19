@@ -19,10 +19,10 @@ def market_value(message):
     match = re.match("^いくら？(.*)" , text)
     if match:
         coin = match.group(1)
-        price_jpy = CoinMarketCap.price_jpy(id=coin, symbol=coin)
-        if price_jpy:
-            print("yes")
-            message.reply(price_jpy+"円")
+        cmc = CoinMarketCap()
+
+        jpy, btc = cmc.price(id=coin, symbol=coin)
+        if jpy:
+            message.reply("{j}円、{b}BTC".format(j=jpy,b=btc))
         else:
-            print("no")
             message.reply("{}は登録されてません".format(coin))

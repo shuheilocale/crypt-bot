@@ -1,13 +1,18 @@
 import requests
 
 class CoinMarketCap:
-    def __init__():
-        pass
 
-    @staticmethod
-    def ticker(id="bitcoin", symbol="BTC"):
-        ret = requests.get("https://api.coinmarketcap.com/v1/ticker/?limit=4000&convert=JPY").json()
-        for coin in ret:
+    __ticker = None
+
+    def stack_ticker(self, limit=5000):
+        self.__ticker = requests.get("https://api.coinmarketcap.com/v1/ticker/?limit={l}&convert=JPY".format(l=limit)).json()
+
+    def ticker(self, id="bitcoin", symbol="BTC"):
+        if self.__ticker is None:
+            print("stack")
+            self.stack_ticker()
+
+        for coin in self.__ticker:
             if coin["id"] == id:
                 return coin
                 
@@ -15,12 +20,12 @@ class CoinMarketCap:
                 return coin
         return False
 
-    @staticmethod
-    def price_jpy(id="bitcoin", symbol="BTC"):
-        coin = CoinMarketCap.ticker(id=id, symbol=symbol)
+    def price(self, id="bitcoin", symbol="BTC"):
+        coin = self.ticker(id=id, symbol=symbol)
+        btc = self.ticker(id="bitcoin")
         if coin:
-            return coin["price_jpy"]
+            return coin["price_jpy"], float(coin["price_jpy"])/float(btc["price_jpy"])
         else:
-            return False
+            return False, False
 
 
