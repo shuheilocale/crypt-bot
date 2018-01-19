@@ -11,40 +11,14 @@ import pybitflyer
 from zaifapi import *
 from coincheck import order, market, account
 
+from .coinmarketcap import CoinMarketCap
+
+
 import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
-
-cryptocurrency={
-    "BTC":0,
-    "BCH":0,
-    "ETH":0,
-    "LTC":0,
-    "MONA":0,
-    "XRP":0,
-    "MOSAIC.CMS":0,
-    "ZAIF":0,
-    "XEM":0,
-    "XP":0,
-    "QTUM":0,
-    "ZNY":0,
-    "CRYPTERIUM":0,
-    "ACO":0,
-    "DOGE":0,
-    "JPY":0,
-    "LEND":0,
-    "XVG":0,
-    "BNB":0,
-    "NEO":0,
-    "PAC":0,
-    "LSK":0,
-    "CMPCO":0,
-    "B3":0,
-    "XCS":0,
-    "OTHER":0   
-}
 
 def req(url, headers=None):
 
@@ -87,8 +61,9 @@ def binance_to_dict(binance, rates):
         c_code = coin["asset"].upper()
         c_code_prx = "BCH" if c_code == "BCC" else c_code
 
-        if c_code_prx in cryptocurrency:
-            dict[c_code_prx] = float(coin["free"]) + float(coin["locked"])
+        amount = float(coin["free"]) + float(coin["locked"])
+        if amount > 0.0:
+            dict[c_code_prx] = amount
             # レート登録
             symbol = c_code+"BTC"
             for rate in rates:
@@ -96,9 +71,6 @@ def binance_to_dict(binance, rates):
                     to_btc_rate[c_code_prx] = float(rate["price"])
                     break
 
-                
-        else:
-            dict["OTHER"] = float(coin["free"]) + float(coin["locked"])
     return dict, to_btc_rate
 
 
@@ -111,11 +83,9 @@ def bitflyer_to_dict(bitflyer):
     dict = {}
     for coin in bitflyer:
         c_code = coin["currency_code"]
-
-        if c_code in cryptocurrency:
-            dict[c_code] = float(coin["amount"])
-        else:
-            dict["OTHER"] = float(coin["amount"])
+        amount = float(coin["amount"])
+        if amount > 0.0:
+            dict[c_code] = amount
 
     return dict
 
@@ -144,11 +114,13 @@ def zaif_to_dict(zaif):
     dict = {}
     for coin in zaif["funds"].keys():
         c_code = coin.upper()
+        amount = zaif["funds"][coin]
 
-        if c_code in cryptocurrency:
-            dict[c_code] = float(zaif["funds"][coin])
-        else:
-            dict["OTHER"] = float(zaif["funds"][coin])
+        if amount > 0.0:
+            if c_code == "MOSAIC.CMS":
+                c_code = "CMS"
+
+            dict[c_code] = amount
 
     return dict
 
@@ -167,10 +139,11 @@ def coincheck_to_dict(coincheck):
             continue
 
         c_code = coin.upper()
-        if c_code in cryptocurrency:
-            dict[c_code] = float(coincheck[coin])
-        else:
-            dict["OTHER"] = float(coincheck[coin])
+
+        amount = float(coincheck[coin])
+
+        if amount > 0.0:
+            dict[c_code] = amount
     return dict
 
 def get_coinechange():
@@ -222,42 +195,28 @@ def totalize(exchanges):
     return assets
 
 
-def calc_amount_denominated_in_btc(assets, rates):
-    ret={}
-    c_codes = assets.keys()
-    for c_code in c_codes:
-        if c_code == "OTHER":
-            ret[c_code] = 0.0
-            continue
-        rate = rates[c_code]
-        price = assets[c_code]*rate
-        ret[c_code] = price
-    return ret
-
-
-def btc_to_jpy(assets, bct_jpy):
-    ret={}
-    total = 0.0
-    c_codes = assets.keys()
-    for c_code in c_codes:
-        price = assets[c_code]/bct_jpy
-        ret[c_code] = price
-        total += price
-
-    return ret, total
-
-
-def out_graph(in_jpy,total_jpy,assets):
+def out_graph(amount_map, price_jpy):
     
-    data=list(in_jpy.values())
-    c_code =list(in_jpy.keys())
-    label = ["{c}(JPY:{v:,d}) {a:,f}".format(c=i,v=int(j), a=assets[i]) for i,j in zip(c_code, data)]
+    amount=list(amount_map.values())
+    c_code =list(amount_map.keys())
+
+    total_jpy = 0.0
+    values = {}
+    for code in c_code:
+        print(code)
+        print(amount_map[code])
+        print(price_jpy[code])
+        if price_jpy[code] != False:
+            values[code] = amount_map[code] * price_jpy[code]
+            total_jpy += amount_map[code] * price_jpy[code]
+
+    label = ["{c}(JPY:{v:,d}) {a:,f}".format(c=c,v=int(amount_map[c] * price_jpy[c]), a=amount_map[c]) for c in c_code]
 
     plt.style.use("ggplot")
     plt.rcParams.update({"font.size":15})
 
     size=(9,5) 
-    col=cm.Spectral(np.arange(len(data))/float(len(data))) 
+    col=cm.Spectral(np.arange(len(amount))/float(len(amount))) 
 
     def make_autopct(values):
         def my_autopct(pct):
@@ -267,73 +226,78 @@ def out_graph(in_jpy,total_jpy,assets):
         return my_autopct
 
     plt.figure(figsize=size,dpi=100)
-    plt.pie(data,colors=col,counterclock=False,startangle=90,autopct=make_autopct(data))
+    plt.pie(list(values.values()),colors=col,counterclock=False,startangle=90,autopct=make_autopct(list(values.values())))
     plt.subplots_adjust(left=0,right=0.7)
     plt.legend(label,fancybox=True,loc="center left",bbox_to_anchor=(0.9,0.5))
     plt.axis("equal")
-    plt.text(-1.7,1,"{:,d}JPY".format(int(total_jpy)),fontsize=17)
+    plt.text(-1.7,1,"{:,d}JPY".format(int(total_jpy)),fontsize=14)
     plt.savefig("pie_graph.png",bbox_inches="tight",pad_inches=0.05)
 
-
-
 def doit():
+
+    ##############
+    # tally amount
+    ##############
+    ## use api
+
+    # binance
     print("binance")
     binance, b_rates = get_binance()
+
+    # bitflyer
     print("bitflyer")
     bitflyer = get_bitflyer()
+
+    # zaif
     print("zaif")
     zaif, z_rates = get_zaif()
+
+    # coincheck
     print("coincheck")
     coincheck = get_coincheck()
-    
+
     print("totalize")
-    assets = totalize([binance, bitflyer, zaif, coincheck])
+    amount = totalize([binance, bitflyer, zaif, coincheck])
 
-
-    #API非管理の通貨を追加する
-
-    #XP
-    print("coinexchange")
-    rate_ce = get_coinechange()
-    xp_rate = rate_ce["XP_DOGE"]*rate_ce["DOGE_LITE"]*b_rates["LTC"]
-
-    #PAC
-    print("cryptopia")
-    rate_crp = get_cryptopia()
-    pac_rate = rate_crp["PAC_DOGE"]*rate_ce["DOGE_LITE"]*b_rates["LTC"]
-
-    #総量
+    ## manual
     f = open("amount.json", 'r')
-    amount = json.load(f)
+    manual_amount = json.load(f)
     f.close()
+    amount.update(manual_amount)
 
-    assets["XP"] = amount["XP"]
-    assets["ACO"] = amount["ACO"]
-    assets["CRYPTERIUM"] = amount["CRYPTERIUM"]
-    assets["PAC"] = amount["PAC"]
-    assets["XCS"] = amount["XCS"]
-    assets["CMPCO"] = amount["CMPCO"]
-    assets["B3"] = amount["B3"]
 
-    #BTC建てに変換する
-    b_rates.update(z_rates)
-    aco = b_rates["ETH"]/1100.0 # 固定レート
-    b_rates.update({"BTC":1.0, "CRYPTERIUM":0.0001, "ACO":aco, "XP":xp_rate,
-                    "PAC":pac_rate, "XCS":rate_ce["XCS_BTC"], "CMPCO":rate_ce["CMPCO_BTC"], "B3":rate_ce["B3_BTC"]})
+    ##############
+    # to jpy
+    ##############
+    cmc = CoinMarketCap()
+    price_jpy = {}
+    btc_jpy, _ = cmc.price(id="BTC")
+    eth_jpy, _ = cmc.price(id="__", symbol="ETH")
+    for coin in amount:
 
-    print("calc amount denominated in btc")
-    in_btc = calc_amount_denominated_in_btc(assets, b_rates)
+        # Not compatible 
+        if coin == "ZAIF":
+            jpy = btc_jpy*z_rates["ZAIF"]
+        elif coin == "ACO":
+            jpy = eth_jpy/1100.0 # 固定レート
+        elif coin == "CRPT":
+            jpy = btc_jpy*0.0001
+        elif coin == "JPY":
+            jpy = 1
 
-    #円建て変換(JPYは既に円建てになっていることに注意！)
-    print("bt to jpy")
-    in_jpy, total_jpy = btc_to_jpy(in_btc, b_rates["JPY"])
+        else:
+            jpy, btc = cmc.price(id="dummy", symbol=coin)
 
+        price_jpy[coin] = jpy
+
+    ##############
+    # output
+    ##############
     print("out gpath")
-    out_graph(in_jpy,total_jpy,assets)
+    out_graph(amount, price_jpy)
 
-    res = ""
-    for c in in_jpy:
-        if assets[c] != 0:
-            res += "{c}:{p}\r\n".format(c=c, p=in_jpy[c]/assets[c])
+    res =""
+    for coin, jpy in sorted(price_jpy.items()):
+        res += "{c}:{p}\r\n".format(c=coin, p=jpy)
 
     return res
