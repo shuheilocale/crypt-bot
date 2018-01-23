@@ -203,9 +203,6 @@ def out_graph(amount_map, price_jpy):
     total_jpy = 0.0
     values = {}
     for code in c_code:
-        print(code)
-        print(amount_map[code])
-        print(price_jpy[code])
         if price_jpy[code] != False:
             values[code] = amount_map[code] * price_jpy[code]
             total_jpy += amount_map[code] * price_jpy[code]
