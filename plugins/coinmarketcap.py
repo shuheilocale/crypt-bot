@@ -1,8 +1,10 @@
-import requests
 import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
+import requests
+import pandas as pd
+import numpy as np
 import datetime as dt
 import time
 import re
@@ -73,6 +75,7 @@ class CoinMarketCap:
         if not "price_usd" in data:
             return False
 
+        
         price_usd = data["price_usd"]
         x_1 = []
         y_1 = []
@@ -81,7 +84,6 @@ class CoinMarketCap:
             d = dt.datetime.fromtimestamp(unix)
             x_1.append(d)
             y_1.append(p_b[1])
-
 
         price_btc = data["price_btc"]
         x_2 = []
@@ -92,20 +94,41 @@ class CoinMarketCap:
             x_2.append(d)
             y_2.append(p_b[1])
 
+        #x_1 # index
+        dti = pd.DatetimeIndex(x_1)
+        df = pd.DataFrame(np.array(y_1), index=dti, columns=["price_usd"])
+        df["price_btc"] = np.array(y_2)
+        #print(df)
+
+        df = df.resample('D').mean()
+
+        mean25 = df["price_usd"].rolling(window=25, min_periods=10).mean()
+        mean75 = df["price_usd"].rolling(window=75, min_periods=10).mean()
+
+        # とりあえず直近30日
+        df = df.ix[ -30: , :]
+        date = df.index
+        mean25 = mean25.ix[ -30:]
+        mean75 = mean75.ix[ -30:]
+
+
         plt.figure()
         fig, ax1 = plt.subplots()
-        ln1 = ax1.plot(x_1, y_1, label="usd", color="#729ECE")
+        ln1 = ax1.plot(date, df["price_usd"], label="usd", color="#729ECE", linewidth=2.0)
+        ln2 = ax1.plot(date, mean25, label="usd-mean25", color="#720E0E", linewidth=0.5)
+        ln3 = ax1.plot(date, mean75, label="usd-mean75", color="#000FBF", linewidth=0.5)
         ax2 = ax1.twinx()
-        ln2 = ax2.plot(x_2, y_2, label="btc", color="#FF9E4A")
-        lns = ln1+ln2
+        ln4 = ax2.plot(date, df["price_btc"], label="btc", color="#FF9E4A", linewidth=2.0, linestyle="dashed")
+        lns = ln1+ln2+ln3+ln4
         labs = [l.get_label() for l in lns]
         ax1.legend(lns, labs, loc=0)
         plt.title("{} chart".format(id))
         plt.ylabel(id)
         plt.tight_layout()
         ax=plt.gca()
-        xfmt = md.DateFormatter("%Y-%m-%d")
+        xfmt = md.DateFormatter("%Y-%m-%d-%H-%M")
         ax.xaxis.set_major_formatter(xfmt)
+        fig.autofmt_xdate()
 
         plt.savefig(out_fname, bbox_inches="tight")
 
@@ -138,3 +161,6 @@ class CoinMarketCap:
         return ret
         
         
+if __name__ == "__main__":
+    cmc = CoinMarketCap()
+    cmc.chart()

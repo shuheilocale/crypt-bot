@@ -41,8 +41,9 @@ def out_chart(message):
 
         ret = cmc.chart_by_symbol(symbol=coin, out_fname="chart.png")
         if ret:
+            symbols = cmc.search_symbol(coin)
             message.channel.upload_file("chart", "chart.png")
-            message.reply("https://coinmarketcap.com/currencies/{}/".format(coin))
+            message.reply("https://coinmarketcap.com/currencies/{}/".format(symbols[0][1]))
         else:
            message.reply("失敗。ログ見てね。")
     
