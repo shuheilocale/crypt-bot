@@ -23,15 +23,69 @@ def adjust_digit(num, digit=10):
 
 
 @respond_to("仮想通貨")
-def ping_func(message):
+def out_portfolio(message):
     res = outputportfolio.doit()
     message.channel.upload_file("graph", "pie_graph.png")
     message.reply(res)  
 
+@listen_to("チャート？")
+def out_chart(message):
+    text = message.body["text"]
+    match = re.match("^チャート？(.*)" , text, re.IGNORECASE)
+    if match:
+        coin = match.group(1)
+        cmc = CoinMarketCap()
+        
+        if coin == "":
+            coin = "BTC"
+
+        ret = cmc.chart_by_symbol(symbol=coin, out_fname="chart.png")
+        if ret:
+            symbols = cmc.search_symbol(coin)
+            message.channel.upload_file("chart", "chart.png")
+            message.reply("https://coinmarketcap.com/currencies/{}/".format(symbols[0][1]))
+        else:
+           message.reply("失敗。ログ見てね。")
+    
+@listen_to("symbol?")
+def search_symbol(message):
+    text = message.body["text"]
+    match = re.match("^symbol\?(.*)" , text, re.IGNORECASE)
+    if match:
+        symbol = match.group(1)
+        print(symbol)
+        cmc = CoinMarketCap()
+
+        symbols = cmc.search_symbol(symbol)
+        res =  "```"
+        for symbol in symbols:
+            res += "{} : {}\r\n".format(symbol[0],symbol[1])
+        res +=  "```"
+
+        message.reply(res)
+
+
+@listen_to("id?")
+def search_id(message):
+    text = message.body["text"]
+    match = re.match("^id\?(.*)" , text, re.IGNORECASE)
+    if match:
+        id = match.group(1)
+        print(id)
+        cmc = CoinMarketCap()
+
+        ids = cmc.search_id(id)
+        res =  "```"
+        for id in ids:
+            res += "{} : {}\r\n".format(id[0],id[1])
+        res +=  "```"
+
+        message.reply(res)
+
 @listen_to(r"^いくら？.*")
 def market_value(message):
     text = message.body["text"]
-    match = re.match("^いくら？(.*)" , text)
+    match = re.match("^いくら？(.*)" , text, re.IGNORECASE)
     if match:
         coin = match.group(1)
         cmc = CoinMarketCap()
