@@ -58,7 +58,7 @@ def search_symbol(message):
         symbols = cmc.search_symbol(symbol)
         res =  "```"
         for symbol in symbols:
-            res += "{}\r\n".format(symbol)
+            res += "{} : {}\r\n".format(symbol[0],symbol[1])
         res +=  "```"
 
         message.reply(res)
@@ -76,7 +76,7 @@ def search_id(message):
         ids = cmc.search_id(id)
         res =  "```"
         for id in ids:
-            res += "{}\r\n".format(id)
+            res += "{} : {}\r\n".format(id[0],id[1])
         res +=  "```"
 
         message.reply(res)

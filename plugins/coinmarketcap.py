@@ -38,7 +38,7 @@ class CoinMarketCap:
             f.close()
 
     def ticker(self, id="bitcoin", symbol="BTC"):
-        for coin in self.__get_ticker():
+        for coin in self.__get_ticker(force_update=True):
             if coin["id"].upper() == id.upper():
                 return coin
                 
@@ -118,9 +118,9 @@ class CoinMarketCap:
         ret = []
 
         for coin in self.__get_ticker():
-            match = re.match(target_symbol , coin["symbol"], re.IGNORECASE)
+            match = re.match(target_symbol, coin["symbol"], re.IGNORECASE)
             if match:
-                ret.append(coin["symbol"] + " : " + coin["id"])
+                ret.append((coin["symbol"], coin["id"]))
         return ret
         
 
@@ -132,9 +132,9 @@ class CoinMarketCap:
         ret = []
 
         for coin in self.__get_ticker():
-            match = re.match(target_id , coin["id"], re.IGNORECASE)
+            match = re.match(target_id, coin["id"], re.IGNORECASE)
             if match:
-                ret.append(coin["id"] + " : " + coin["symbol"])
+                ret.append((coin["id"], coin["symbol"]))
         return ret
         
         
